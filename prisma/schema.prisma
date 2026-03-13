@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+}
+
+model Raffle {
+  id             String        @id @default(uuid())
+  title          String
+  slug           String        @unique
+  description    String
+  price          Decimal       @db.Decimal(10, 2)
+  lotteryName    String
+  lotteryUrl     String?
+  drawDate       DateTime
+  whatsappNumber String
+  totalNumbers   Int
+  featured       Boolean       @default(false)
+  status         RaffleStatus  @default(ACTIVE)
+  createdAt      DateTime      @default(now())
+  images         RaffleImage[]
+  tickets        Ticket[]
+}
+
+model RaffleImage {
+  id       String @id @default(uuid())
+  url      String
+  order    Int    @default(0)
+  raffle   Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  raffleId String
+}
+
+model Ticket {
+  id         String       @id @default(uuid())
+  number     Int
+  status     TicketStatus @default(AVAILABLE)
+  reservedAt DateTime?
+  raffle     Raffle       @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  raffleId   String
+  customer   Customer?    @relation(fields: [customerId], references: [id])
+  customerId String?
+
+  @@unique([raffleId, number])
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String   @unique
+  email     String?
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+model Setting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+}
+
+enum Role {
+  ADMIN
+}
+
+enum RaffleStatus {
+  ACTIVE
+  INACTIVE
+  FINISHED
+}
+
+enum TicketStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
