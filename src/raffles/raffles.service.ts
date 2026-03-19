@@ -59,12 +59,13 @@ export class RafflesService {
       include: {
         images: { orderBy: { order: 'asc' } },
         tickets: {
-          orderBy: { number: 'asc' },
           select: {
             id: true,
             number: true,
             status: true,
+            customerId: true,
           },
+          orderBy: { number: 'asc' },
         },
       },
     });
@@ -73,11 +74,39 @@ export class RafflesService {
     return raffle;
   }
 
+  async update(id: string, dto: any) {
+    const data: any = { ...dto }
+    delete data.updateSlug
+
+    if (dto.updateSlug && dto.title) {
+      data.slug = await this.generateSlug(dto.title)
+    }
+
+    return this.prisma.raffle.update({
+      where: { id },
+      data: {
+        ...data,
+        price: data.price ? Number(data.price) : undefined,
+      },
+    })
+  }
+
   async updateStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'FINISHED') {
     return this.prisma.raffle.update({
       where: { id },
       data: { status },
     });
+  }
+
+  async reserveTicket(ticketId: string) {
+    const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } })
+    if (!ticket) throw new Error('Ticket no encontrado')
+    if (ticket.status !== 'AVAILABLE') throw new Error('Ticket no disponible')
+    
+    return this.prisma.ticket.update({
+      where: { id: ticketId },
+      data: { status: 'RESERVED' },
+    })
   }
 
   async updateTicketStatus(
@@ -93,5 +122,9 @@ export class RafflesService {
         reservedAt: status === 'RESERVED' ? new Date() : null,
       },
     });
+  }
+
+  async remove(id: string) {
+    return this.prisma.raffle.delete({ where: { id } })
   }
 }

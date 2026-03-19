@@ -1,3 +1,4 @@
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -35,26 +36,36 @@ export class CustomersService {
   }
 
   async findOne(id: string) {
-    const customer = await this.prisma.customer.findUnique({
+    return this.prisma.customer.findUnique({
       where: { id },
       include: {
         tickets: {
-          include: { raffle: { select: { title: true, slug: true } } },
-        },
-      },
-    });
-    if (!customer) throw new NotFoundException('Cliente no encontrado');
-    return customer;
+          include: {
+            raffle: {
+              select: { title: true, slug: true }
+            }
+          }
+        }
+      }
+    })
   }
 
-  async update(id: string, dto: Partial<CreateCustomerDto>) {
-    await this.findOne(id);
-    return this.prisma.customer.update({ where: { id }, data: dto });
+  async update(id: string, dto: UpdateCustomerDto) {
+    return this.prisma.customer.update({
+      where: { id },
+      data: {
+        ...dto,
+        email: dto.email || null,
+      }
+    })
   }
 
   async remove(id: string) {
-    await this.findOne(id);
-    await this.prisma.customer.delete({ where: { id } });
-    return { message: 'Cliente eliminado correctamente' };
+    await this.prisma.ticket.updateMany({
+      where: { customerId: id },
+      data: { status: 'AVAILABLE', customerId: null },
+    })
+
+    return this.prisma.customer.delete({ where: { id } })
   }
 }
