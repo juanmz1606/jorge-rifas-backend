@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('raffles')
 export class RafflesController {
-  constructor(private raffles: RafflesService) {}
+  constructor(private raffles: RafflesService) { }
 
   // Rutas públicas
   @Get()
@@ -43,6 +43,27 @@ export class RafflesController {
     @Body('status') status: 'ACTIVE' | 'INACTIVE' | 'FINISHED',
   ) {
     return this.raffles.updateStatus(id, status);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('tickets/:ticketId/number')
+  updateTicketNumber(
+    @Param('ticketId') ticketId: string,
+    @Body('number') number: number,
+  ) {
+    return this.raffles.updateTicketNumber(ticketId, number)
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('tickets')
+  addTicket(@Body('raffleId') raffleId: string, @Body('number') number: number) {
+    return this.raffles.addTicket(raffleId, number)
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('tickets/:ticketId')
+  deleteTicket(@Param('ticketId') ticketId: string) {
+    return this.raffles.deleteTicket(ticketId)
   }
 
   @Patch('tickets/:ticketId/reserve')

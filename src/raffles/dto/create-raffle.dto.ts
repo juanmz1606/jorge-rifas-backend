@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt, Min } from 'class-validator';
+import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt, Min, IsArray } from 'class-validator';
 
 export class CreateRaffleDto {
   @IsString()
@@ -30,4 +30,8 @@ export class CreateRaffleDto {
   @IsOptional()
   @IsBoolean()
   featured?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  numbers?: number[]
 }

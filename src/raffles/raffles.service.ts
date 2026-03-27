@@ -4,7 +4,7 @@ import { CreateRaffleDto } from './dto/create-raffle.dto';
 
 @Injectable()
 export class RafflesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   private generateSlug(title: string): string {
     return title
@@ -17,26 +17,31 @@ export class RafflesService {
   }
 
   async create(dto: CreateRaffleDto) {
-    const slug = this.generateSlug(dto.title);
+    const slug = this.generateSlug(dto.title)
+    const { numbers, ...raffleData } = dto  // ← separa numbers del resto
 
     const raffle = await this.prisma.raffle.create({
       data: {
-        ...dto,
+        ...raffleData,
         slug,
         price: dto.price,
         drawDate: new Date(dto.drawDate),
+        totalNumbers: numbers && numbers.length > 0 ? numbers.length : dto.totalNumbers,
       },
-    });
+    })
 
-    // Genera los tickets automáticamente
-    const tickets = Array.from({ length: dto.totalNumbers }, (_, i) => ({
-      number: i + 1,
+    const ticketNumbers = numbers && numbers.length > 0
+      ? numbers
+      : Array.from({ length: dto.totalNumbers }, (_, i) => i + 1)
+
+    const tickets = ticketNumbers.map(n => ({
+      number: n,
       raffleId: raffle.id,
-    }));
+    }))
 
-    await this.prisma.ticket.createMany({ data: tickets });
+    await this.prisma.ticket.createMany({ data: tickets })
 
-    return raffle;
+    return raffle
   }
 
   async findAll() {
@@ -91,6 +96,57 @@ export class RafflesService {
     })
   }
 
+  async updateTicketNumber(ticketId: string, number: number) {
+    // Verificar que el ticket existe
+    const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } })
+    if (!ticket) throw new NotFoundException('Ticket no encontrado')
+
+    // Verificar que el número no esté en uso en la misma rifa
+    const exists = await this.prisma.ticket.findFirst({
+      where: { raffleId: ticket.raffleId, number, id: { not: ticketId } }
+    })
+    if (exists) throw new Error(`El número ${number} ya existe en esta rifa`)
+
+    return this.prisma.ticket.update({
+      where: { id: ticketId },
+      data: { number }
+    })
+  }
+
+  async addTicket(raffleId: string, number: number) {
+    const exists = await this.prisma.ticket.findFirst({
+      where: { raffleId, number }
+    })
+    if (exists) throw new Error(`El número ${number} ya existe en esta rifa`)
+
+    const ticket = await this.prisma.ticket.create({
+      data: { raffleId, number }
+    })
+
+    // Actualizar totalNumbers
+    await this.prisma.raffle.update({
+      where: { id: raffleId },
+      data: { totalNumbers: { increment: 1 } }
+    })
+
+    return ticket
+  }
+
+  async deleteTicket(ticketId: string) {
+    const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } })
+    if (!ticket) throw new NotFoundException('Ticket no encontrado')
+    if (ticket.status !== 'AVAILABLE') throw new Error('Solo se pueden eliminar tickets disponibles')
+
+    await this.prisma.ticket.delete({ where: { id: ticketId } })
+
+    await this.prisma.raffle.update({
+      where: { id: ticket.raffleId },
+      data: { totalNumbers: { decrement: 1 } }
+    })
+
+    return { success: true }
+  }
+
   async updateStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'FINISHED') {
     return this.prisma.raffle.update({
       where: { id },
@@ -102,7 +158,7 @@ export class RafflesService {
     const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } })
     if (!ticket) throw new Error('Ticket no encontrado')
     if (ticket.status !== 'AVAILABLE') throw new Error('Ticket no disponible')
-    
+
     return this.prisma.ticket.update({
       where: { id: ticketId },
       data: { status: 'RESERVED' },
