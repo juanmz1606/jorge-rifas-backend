@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRaffleDto } from './dto/create-raffle.dto';
 
@@ -105,7 +105,7 @@ export class RafflesService {
     const exists = await this.prisma.ticket.findFirst({
       where: { raffleId: ticket.raffleId, number, id: { not: ticketId } }
     })
-    if (exists) throw new Error(`El número ${number} ya existe en esta rifa`)
+    if (exists) throw new ConflictException(`El número ${number} ya existe en esta rifa`)
 
     return this.prisma.ticket.update({
       where: { id: ticketId },
@@ -117,7 +117,7 @@ export class RafflesService {
     const exists = await this.prisma.ticket.findFirst({
       where: { raffleId, number }
     })
-    if (exists) throw new Error(`El número ${number} ya existe en esta rifa`)
+    if (exists) throw new ConflictException(`El número ${number} ya existe en esta rifa`)
 
     const ticket = await this.prisma.ticket.create({
       data: { raffleId, number }
@@ -135,7 +135,7 @@ export class RafflesService {
   async deleteTicket(ticketId: string) {
     const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } })
     if (!ticket) throw new NotFoundException('Ticket no encontrado')
-    if (ticket.status !== 'AVAILABLE') throw new Error('Solo se pueden eliminar tickets disponibles')
+    if (ticket.status !== 'AVAILABLE') throw new BadRequestException('Solo se pueden eliminar tickets disponibles')
 
     await this.prisma.ticket.delete({ where: { id: ticketId } })
 
