@@ -33,5 +33,7 @@ export class CreateRaffleDto {
 
   @IsOptional()
   @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
   numbers?: number[]
 }

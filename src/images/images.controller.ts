@@ -7,6 +7,7 @@ import {
   UseInterceptors,
   UseGuards,
   Body,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -16,7 +17,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('images')
 export class ImagesController {
-  constructor(private images: ImagesService) {}
+  constructor(private images: ImagesService) { }
 
   @Post('upload/:raffleId')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
@@ -25,11 +26,8 @@ export class ImagesController {
     @UploadedFile() file: Express.Multer.File,
     @Body('order') order?: string,
   ) {
-    return this.images.uploadRaffleImage(
-      raffleId,
-      file,
-      order ? parseInt(order) : 0,
-    );
+    if (!file) throw new BadRequestException('No se proporcionó ningún archivo')
+    return this.images.uploadRaffleImage(raffleId, file, order ? parseInt(order) : 0)
   }
 
   @Delete(':imageId')

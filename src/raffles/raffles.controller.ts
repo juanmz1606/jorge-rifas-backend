@@ -2,12 +2,12 @@ import { Controller, Get, Post, Body, Param, Patch, UseGuards, Delete } from '@n
 import { RafflesService } from './raffles.service';
 import { CreateRaffleDto } from './dto/create-raffle.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateRaffleDto } from './dto/update-raffle.dto';
 
 @Controller('raffles')
 export class RafflesController {
   constructor(private raffles: RafflesService) { }
 
-  // Rutas públicas
   @Get()
   findAll() {
     return this.raffles.findAll();
@@ -18,22 +18,10 @@ export class RafflesController {
     return this.raffles.findFeatured();
   }
 
-  @Get(':slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.raffles.findBySlug(slug);
-  }
-
-  // Rutas protegidas (solo admin)
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() dto: CreateRaffleDto) {
     return this.raffles.create(dto);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Patch(':id/details')
-  update(@Param('id') id: string, @Body() dto: Partial<CreateRaffleDto>) {
-    return this.raffles.update(id, dto)
   }
 
   @UseGuards(JwtAuthGuard)
@@ -46,29 +34,40 @@ export class RafflesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('tickets')
+  addTicket(@Body('raffleId') raffleId: string, @Body('number') number: number) {
+    return this.raffles.addTicket(raffleId, number)
+  }
+
+  @Get(':slug')
+  findBySlug(@Param('slug') slug: string) {
+    return this.raffles.findBySlug(slug);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/details')
+  update(@Param('id') id: string, @Body() dto: UpdateRaffleDto) {
+    return this.raffles.update(id, dto)
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.raffles.remove(id)
+  }
+
+  @Patch('tickets/:ticketId/reserve')
+  reserveTicket(@Param('ticketId') ticketId: string) {
+    return this.raffles.reserveTicket(ticketId)
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch('tickets/:ticketId/number')
   updateTicketNumber(
     @Param('ticketId') ticketId: string,
     @Body('number') number: number,
   ) {
     return this.raffles.updateTicketNumber(ticketId, number)
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('tickets')
-  addTicket(@Body('raffleId') raffleId: string, @Body('number') number: number) {
-    return this.raffles.addTicket(raffleId, number)
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Delete('tickets/:ticketId')
-  deleteTicket(@Param('ticketId') ticketId: string) {
-    return this.raffles.deleteTicket(ticketId)
-  }
-
-  @Patch('tickets/:ticketId/reserve')
-  reserveTicket(@Param('ticketId') ticketId: string) {
-    return this.raffles.reserveTicket(ticketId)
   }
 
   @UseGuards(JwtAuthGuard)
@@ -82,8 +81,8 @@ export class RafflesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.raffles.remove(id)
+  @Delete('tickets/:ticketId')
+  deleteTicket(@Param('ticketId') ticketId: string) {
+    return this.raffles.deleteTicket(ticketId)
   }
 }

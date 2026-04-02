@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRaffleDto } from './dto/create-raffle.dto';
+import { UpdateRaffleDto } from './dto/update-raffle.dto';
 
 @Injectable()
 export class RafflesService {
@@ -79,7 +80,7 @@ export class RafflesService {
     return raffle;
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateRaffleDto) {
     const data: any = { ...dto }
     delete data.updateSlug
 
@@ -156,8 +157,8 @@ export class RafflesService {
 
   async reserveTicket(ticketId: string) {
     const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } })
-    if (!ticket) throw new Error('Ticket no encontrado')
-    if (ticket.status !== 'AVAILABLE') throw new Error('Ticket no disponible')
+    if (!ticket) throw new NotFoundException('Ticket no encontrado')
+    if (ticket.status !== 'AVAILABLE') throw new BadRequestException('Ticket no disponible')
 
     return this.prisma.ticket.update({
       where: { id: ticketId },

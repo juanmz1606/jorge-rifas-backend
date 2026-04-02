@@ -10,10 +10,6 @@ export class SettingsService {
     return settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
   }
 
-  async get(key: string) {
-    return this.prisma.setting.findUnique({ where: { key } });
-  }
-
   async set(key: string, value: string) {
     return this.prisma.setting.upsert({
       where: { key },

@@ -5,7 +5,7 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 
 @Injectable()
 export class CustomersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(dto: CreateCustomerDto) {
     const exists = await this.prisma.customer.findUnique({
@@ -20,11 +20,11 @@ export class CustomersService {
     return this.prisma.customer.findMany({
       where: search
         ? {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' } },
-              { phone: { contains: search } },
-            ],
-          }
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: search } },
+          ],
+        }
         : undefined,
       include: {
         tickets: {
@@ -36,18 +36,18 @@ export class CustomersService {
   }
 
   async findOne(id: string) {
-    return this.prisma.customer.findUnique({
+    const customer = await this.prisma.customer.findUnique({
       where: { id },
       include: {
         tickets: {
           include: {
-            raffle: {
-              select: { title: true, slug: true }
-            }
+            raffle: { select: { title: true, slug: true } }
           }
         }
       }
     })
+    if (!customer) throw new NotFoundException('Cliente no encontrado')
+    return customer
   }
 
   async update(id: string, dto: UpdateCustomerDto) {

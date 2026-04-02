@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
-import { Express } from 'express';
 
 @Injectable()
 export class CloudinaryService {
@@ -24,9 +23,7 @@ export class CloudinaryService {
   }
 
   private extractPublicId(url: string): string {
-    const parts = url.split('/');
-    const filename = parts[parts.length - 1].split('.')[0];
-    const folder = parts[parts.length - 2];
-    return `${folder}/${filename}`;
+    const matches = url.match(/\/(?:v\d+\/)?(.+)\.[^.]+$/)
+    return matches ? matches[1] : url
   }
 }

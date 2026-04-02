@@ -18,12 +18,12 @@ Crea un archivo `.env` basado en `.env.example` y configura tus variables.
 
 Corre las migraciones:
 ```bash
-npx prisma migrate dev
+npx prisma migrate deploy
 ```
 
 Crea el administrador inicial:
 ```bash
-curl -X POST http://localhost:3000/auth/setup \
+curl -X POST http://localhost:3000/api/v1/auth/setup \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@rifas.com", "password": "tu_password"}'
 ```
@@ -33,24 +33,33 @@ curl -X POST http://localhost:3000/auth/setup \
 npm run start:dev
 ```
 
-El servidor corre en `http://localhost:3000`.
+El servidor corre en `http://localhost:3000`. Todas las rutas tienen el prefijo `/api/v1`.
 
 ## Endpoints principales
 
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| POST | /auth/login | No | Iniciar sesión |
-| GET | /raffles | No | Listar rifas |
-| GET | /raffles/:slug | No | Detalle de rifa |
-| POST | /raffles | Sí | Crear rifa |
-| PATCH | /raffles/:id/details | Sí | Editar rifa |
-| DELETE | /raffles/:id | Sí | Eliminar rifa |
-| PATCH | /raffles/tickets/:id/reserve | No | Reservar ticket (público) |
-| PATCH | /raffles/tickets/:id | Sí | Actualizar ticket (admin) |
-| GET | /customers | Sí | Listar clientes |
-| POST | /customers | Sí | Crear cliente |
-| GET | /settings | No | Obtener ajustes |
-| PUT | /settings | Sí | Actualizar ajustes |
+| POST | /api/v1/auth/login | No | Iniciar sesión |
+| POST | /api/v1/auth/setup | No | Crear admin inicial |
+| GET | /api/v1/raffles | No | Listar rifas |
+| GET | /api/v1/raffles/featured | No | Rifas destacadas |
+| GET | /api/v1/raffles/:slug | No | Detalle de rifa |
+| POST | /api/v1/raffles | Sí | Crear rifa |
+| PATCH | /api/v1/raffles/:id/details | Sí | Editar rifa |
+| PATCH | /api/v1/raffles/:id/status | Sí | Cambiar estado |
+| DELETE | /api/v1/raffles/:id | Sí | Eliminar rifa |
+| PATCH | /api/v1/raffles/tickets/:id/reserve | No | Reservar ticket (público) |
+| PATCH | /api/v1/raffles/tickets/:id | Sí | Actualizar ticket |
+| PATCH | /api/v1/raffles/tickets/:id/number | Sí | Cambiar número de ticket |
+| POST | /api/v1/raffles/tickets | Sí | Agregar ticket |
+| DELETE | /api/v1/raffles/tickets/:id | Sí | Eliminar ticket |
+| GET | /api/v1/customers | Sí | Listar clientes |
+| POST | /api/v1/customers | Sí | Crear cliente |
+| GET | /api/v1/customers/:id | Sí | Detalle cliente |
+| PATCH | /api/v1/customers/:id | Sí | Editar cliente |
+| DELETE | /api/v1/customers/:id | Sí | Eliminar cliente |
+| GET | /api/v1/settings | No | Obtener ajustes |
+| PUT | /api/v1/settings | Sí | Actualizar ajustes |
 
 ## Deploy
 
