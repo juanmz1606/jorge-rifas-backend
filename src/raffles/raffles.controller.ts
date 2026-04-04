@@ -19,6 +19,12 @@ export class RafflesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('id/:id')
+  findById(@Param('id') id: string) {
+    return this.raffles.findById(id)
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() dto: CreateRaffleDto) {
     return this.raffles.create(dto);

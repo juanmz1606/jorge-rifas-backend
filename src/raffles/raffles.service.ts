@@ -97,6 +97,21 @@ export class RafflesService {
     })
   }
 
+  async findById(id: string) {
+    const raffle = await this.prisma.raffle.findUnique({
+      where: { id },
+      include: {
+        images: { orderBy: { order: 'asc' } },
+        tickets: {
+          select: { id: true, number: true, status: true, customerId: true },
+          orderBy: { number: 'asc' },
+        },
+      },
+    })
+    if (!raffle) throw new NotFoundException('Rifa no encontrada')
+    return raffle
+  }
+
   async updateTicketNumber(ticketId: string, number: number) {
     // Verificar que el ticket existe
     const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } })
