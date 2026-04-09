@@ -54,8 +54,7 @@ export class CustomersService {
     return this.prisma.customer.update({
       where: { id },
       data: {
-        ...dto,
-        email: dto.email || null,
+        ...dto
       }
     })
   }

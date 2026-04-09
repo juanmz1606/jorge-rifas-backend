@@ -2,30 +2,30 @@ import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt, Min, Is
 
 export class CreateRaffleDto {
   @IsString()
-  title: string;
+  title!: string;
 
   @IsString()
-  description: string;
+  description!: string;
 
   @IsNumber()
-  price: number;
+  price!: number;
 
   @IsString()
-  lotteryName: string;
+  lotteryName!: string;
 
   @IsOptional()
   @IsString()
   lotteryUrl?: string;
 
   @IsDateString()
-  drawDate: string;
+  drawDate!: string;
 
   @IsString()
-  whatsappNumber: string;
+  whatsappNumber!: string;
 
   @IsInt()
   @Min(1)
-  totalNumbers: number;
+  totalNumbers!: number;
 
   @IsOptional()
   @IsBoolean()

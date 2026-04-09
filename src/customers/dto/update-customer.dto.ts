@@ -1,5 +1,4 @@
-import { IsString, IsOptional, IsEmail, Matches, Length } from 'class-validator'
-import { Transform } from 'class-transformer'
+import { IsString, IsOptional, Matches, Length } from 'class-validator'
 
 export class UpdateCustomerDto {
   @IsOptional()
@@ -13,7 +12,6 @@ export class UpdateCustomerDto {
   phone?: string
 
   @IsOptional()
-  @IsEmail({}, { message: 'El email no tiene un formato válido' })
-  @Transform(({ value }) => value === '' ? undefined : value)
-  email?: string
+  @IsString()
+  lugar?: string
 }

@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt, IsArray, Min } from 'class-validator'
+import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt } from 'class-validator'
 
 export class UpdateRaffleDto {
   @IsOptional()

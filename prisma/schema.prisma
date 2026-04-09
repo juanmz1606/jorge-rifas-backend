@@ -59,7 +59,7 @@ model Customer {
   id        String   @id @default(uuid())
   name      String
   phone     String   @unique
-  email     String?
+  lugar     String
   createdAt DateTime @default(now())
   tickets   Ticket[]
 }
