@@ -23,6 +23,7 @@ export class CustomersService {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
             { phone: { contains: search } },
+            { lugar: { contains: search, mode: 'insensitive' } },
           ],
         }
         : undefined,
