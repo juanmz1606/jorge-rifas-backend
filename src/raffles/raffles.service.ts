@@ -177,7 +177,44 @@ export class RafflesService {
 
     return this.prisma.ticket.update({
       where: { id: ticketId },
-      data: { status: 'RESERVED' },
+      data: { status: 'RESERVED', reservedAt: new Date() },
+    })
+  }
+
+  async reserveTicketsBatch(ticketIds: string[]) {
+    const unique = [...new Set(ticketIds)]
+    if (unique.length === 0) {
+      throw new BadRequestException('Indica al menos un número')
+    }
+    if (unique.length > 40) {
+      throw new BadRequestException('Máximo 40 números por reserva')
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const tickets = await tx.ticket.findMany({
+        where: { id: { in: unique } },
+      })
+      if (tickets.length !== unique.length) {
+        throw new NotFoundException('Algún ticket no existe')
+      }
+      const raffleIds = [...new Set(tickets.map((t) => t.raffleId))]
+      if (raffleIds.length !== 1) {
+        throw new BadRequestException('Todos los números deben ser de la misma rifa')
+      }
+      const now = new Date()
+      const result = await tx.ticket.updateMany({
+        where: { id: { in: unique }, status: 'AVAILABLE' },
+        data: { status: 'RESERVED', reservedAt: now },
+      })
+      if (result.count !== unique.length) {
+        throw new ConflictException(
+          'Uno o más números ya no estaban disponibles. Recarga e intenta de nuevo.',
+        )
+      }
+      return tx.ticket.findMany({
+        where: { id: { in: unique } },
+        orderBy: { number: 'asc' },
+      })
     })
   }
 

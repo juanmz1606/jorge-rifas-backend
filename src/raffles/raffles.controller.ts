@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Param, Patch, UseGuards, Delete } from '@nestjs/common';
 import { RafflesService } from './raffles.service';
 import { CreateRaffleDto } from './dto/create-raffle.dto';
+import { ReserveTicketsBatchDto } from './dto/reserve-tickets-batch.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateRaffleDto } from './dto/update-raffle.dto';
 
@@ -37,6 +38,12 @@ export class RafflesController {
     @Body('status') status: 'ACTIVE' | 'INACTIVE' | 'FINISHED',
   ) {
     return this.raffles.updateStatus(id, status);
+  }
+
+  /** Público: reservar varios números disponibles a la vez (misma rifa). */
+  @Post('tickets/reserve-batch')
+  reserveTicketsBatch(@Body() dto: ReserveTicketsBatchDto) {
+    return this.raffles.reserveTicketsBatch(dto.ticketIds)
   }
 
   @UseGuards(JwtAuthGuard)
