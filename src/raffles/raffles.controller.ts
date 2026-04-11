@@ -94,6 +94,16 @@ export class RafflesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Patch('tickets/batch/assign-customer')
+  assignCustomerToTicketsBatch(
+    @Body('ticketIds') ticketIds: string[],
+    @Body('customerId') customerId: string,
+    @Body('status') status?: 'AVAILABLE' | 'RESERVED' | 'SOLD',
+  ) {
+    return this.raffles.assignCustomerToTicketsBatch(ticketIds, customerId, status);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Delete('tickets/:ticketId')
   deleteTicket(@Param('ticketId') ticketId: string) {
     return this.raffles.deleteTicket(ticketId)

@@ -233,6 +233,46 @@ export class RafflesService {
     });
   }
 
+  async assignCustomerToTicketsBatch(
+    ticketIds: string[],
+    customerId: string,
+    status?: 'AVAILABLE' | 'RESERVED' | 'SOLD',
+  ) {
+    const unique = [...new Set(ticketIds)]
+    if (unique.length === 0) {
+      throw new BadRequestException('Indica al menos un ticket')
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Validar que todos los tickets existen
+      const tickets = await tx.ticket.findMany({
+        where: { id: { in: unique } },
+      })
+      if (tickets.length !== unique.length) {
+        throw new NotFoundException('Uno o más tickets no existen')
+      }
+
+      // Validar que el cliente existe
+      const customer = await tx.customer.findUnique({ where: { id: customerId } })
+      if (!customer) throw new NotFoundException('Cliente no encontrado')
+
+      // Actualizar tickets
+      const updateData: any = { customerId }
+      if (status) updateData.status = status
+      if (status === 'RESERVED') updateData.reservedAt = new Date()
+
+      const result = await tx.ticket.updateMany({
+        where: { id: { in: unique } },
+        data: updateData,
+      })
+
+      return tx.ticket.findMany({
+        where: { id: { in: unique } },
+        orderBy: { number: 'asc' },
+      })
+    })
+  }
+
   async remove(id: string) {
     return this.prisma.raffle.delete({ where: { id } })
   }
