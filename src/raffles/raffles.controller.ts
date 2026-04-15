@@ -89,8 +89,9 @@ export class RafflesController {
     @Param('ticketId') ticketId: string,
     @Body('status') status: 'AVAILABLE' | 'RESERVED' | 'SOLD',
     @Body('customerId') customerId?: string,
+    @Body('notes') notes?: string,
   ) {
-    return this.raffles.updateTicketStatus(ticketId, status, customerId);
+    return this.raffles.updateTicketStatus(ticketId, status, customerId, notes);
   }
 
   @UseGuards(JwtAuthGuard)

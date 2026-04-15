@@ -222,15 +222,17 @@ export class RafflesService {
     ticketId: string,
     status: 'AVAILABLE' | 'RESERVED' | 'SOLD',
     customerId?: string,
+    notes?: string,
   ) {
     return this.prisma.ticket.update({
       where: { id: ticketId },
       data: {
         status,
         customerId: customerId ?? null,
+        notes: notes !== undefined ? notes : undefined,
         reservedAt: status === 'RESERVED' ? new Date() : null,
       },
-    });
+    })
   }
 
   async assignCustomerToTicketsBatch(

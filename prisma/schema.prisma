@@ -46,6 +46,7 @@ model Ticket {
   id         String       @id @default(uuid())
   number     Int
   status     TicketStatus @default(AVAILABLE)
+  notes      String?      // ← nuevo campo
   reservedAt DateTime?
   raffle     Raffle       @relation(fields: [raffleId], references: [id], onDelete: Cascade)
   raffleId   String
