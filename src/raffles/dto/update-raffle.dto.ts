@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt } from 'class-validator'
+import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt, Max, Min } from 'class-validator'
 
 export class UpdateRaffleDto {
   @IsOptional()
@@ -28,6 +28,12 @@ export class UpdateRaffleDto {
   @IsOptional()
   @IsString()
   whatsappNumber?: string
+
+  @IsOptional()
+  @IsInt()
+  @Min(3)
+  @Max(4)
+  digitCount?: number
 
   @IsOptional()
   @IsBoolean()

@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt, Min, IsArray } from 'class-validator';
+import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt, Min, IsArray, Max } from 'class-validator';
 
 export class CreateRaffleDto {
   @IsString()
@@ -26,6 +26,12 @@ export class CreateRaffleDto {
   @IsInt()
   @Min(1)
   totalNumbers!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(3)
+  @Max(4)
+  digitCount?: number
 
   @IsOptional()
   @IsBoolean()

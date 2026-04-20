@@ -27,6 +27,7 @@ model Raffle {
   whatsappNumber String
   totalNumbers   Int
   winnerNumber   Int?
+  digitCount     Int           @default(4)
   featured       Boolean       @default(false)
   status         RaffleStatus  @default(ACTIVE)
   createdAt      DateTime      @default(now())
