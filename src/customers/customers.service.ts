@@ -42,7 +42,9 @@ export class CustomersService {
       include: {
         tickets: {
           include: {
-            raffle: { select: { title: true, slug: true } }
+            raffle: {
+              select: { title: true, slug: true, digitCount: true }
+            }
           }
         }
       }
