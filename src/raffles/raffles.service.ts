@@ -130,6 +130,15 @@ export class RafflesService {
   }
 
   async addTicket(raffleId: string, number: number) {
+    const raffle = await this.prisma.raffle.findUnique({ where: { id: raffleId } })
+    if (!raffle) throw new NotFoundException('Rifa no encontrada')
+
+    const maxNumber = Math.pow(10, raffle.digitCount) - 1
+    if (number > maxNumber) {
+      throw new BadRequestException(
+        `Con ${raffle.digitCount} cifras el número máximo es ${maxNumber}`
+      )
+    }
     const exists = await this.prisma.ticket.findFirst({
       where: { raffleId, number }
     })
