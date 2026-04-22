@@ -18,8 +18,16 @@ export class RafflesService {
   }
 
   async create(dto: CreateRaffleDto) {
-    const slug = this.generateSlug(dto.title)
-    const { numbers, ...raffleData } = dto  // ← separa numbers del resto
+    const baseSlug = this.generateSlug(dto.title)
+    let slug = baseSlug
+    let attempt = 1
+
+    // Si el slug ya existe, agrega sufijo -2, -3, etc.
+    while (await this.prisma.raffle.findUnique({ where: { slug } })) {
+      slug = `${baseSlug}-${++attempt}`
+    }
+
+    const { numbers, ...raffleData } = dto
 
     const raffle = await this.prisma.raffle.create({
       data: {
@@ -35,12 +43,9 @@ export class RafflesService {
       ? numbers
       : Array.from({ length: dto.totalNumbers }, (_, i) => i + 1)
 
-    const tickets = ticketNumbers.map(n => ({
-      number: n,
-      raffleId: raffle.id,
-    }))
-
-    await this.prisma.ticket.createMany({ data: tickets })
+    await this.prisma.ticket.createMany({
+      data: ticketNumbers.map(n => ({ number: n, raffleId: raffle.id }))
+    })
 
     return raffle
   }
@@ -85,7 +90,15 @@ export class RafflesService {
     delete data.updateSlug
 
     if (dto.updateSlug && dto.title) {
-      data.slug = await this.generateSlug(dto.title)
+      const baseSlug = this.generateSlug(dto.title)
+      let slug = baseSlug
+      let attempt = 1
+      while (await this.prisma.raffle.findFirst({
+        where: { slug, id: { not: id } }
+      })) {
+        slug = `${baseSlug}-${++attempt}`
+      }
+      data.slug = slug
     }
 
     return this.prisma.raffle.update({
@@ -132,6 +145,9 @@ export class RafflesService {
   async addTicket(raffleId: string, number: number) {
     const raffle = await this.prisma.raffle.findUnique({ where: { id: raffleId } })
     if (!raffle) throw new NotFoundException('Rifa no encontrada')
+
+    if (number < 0) throw new BadRequestException('El número no puede ser negativo')
+
 
     const maxNumber = Math.pow(10, raffle.digitCount) - 1
     if (number > maxNumber) {
