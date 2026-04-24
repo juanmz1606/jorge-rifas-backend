@@ -243,6 +243,50 @@ export class RafflesService {
     })
   }
 
+  async reserveWithCustomer(ticketIds: string[], name: string, phone: string) {
+    const unique = [...new Set(ticketIds)]
+    if (unique.length === 0) throw new BadRequestException('Indica al menos un número')
+
+    return this.prisma.$transaction(async (tx) => {
+      // Buscar o crear cliente con etiqueta PENDIENTE
+      let customer = await tx.customer.findUnique({ where: { phone } })
+
+      if (!customer) {
+        customer = await tx.customer.create({
+          data: {
+            name: `${name} - PENDIENTE`,
+            phone,
+            lugar: 'Sin especificar',
+          }
+        })
+      }
+
+      // Verificar que los tickets existen y están disponibles
+      const tickets = await tx.ticket.findMany({
+        where: { id: { in: unique } }
+      })
+      if (tickets.length !== unique.length) {
+        throw new NotFoundException('Algún ticket no existe')
+      }
+      const unavailable = tickets.filter(t => t.status !== 'AVAILABLE')
+      if (unavailable.length > 0) {
+        throw new ConflictException('Uno o más números ya no están disponibles')
+      }
+
+      // Reservar y asignar cliente
+      await tx.ticket.updateMany({
+        where: { id: { in: unique } },
+        data: {
+          status: 'RESERVED',
+          customerId: customer.id,
+          reservedAt: new Date(),
+        }
+      })
+
+      return { customerId: customer.id, customerName: customer.name }
+    })
+  }
+
   async updateTicketStatus(
     ticketId: string,
     status: 'AVAILABLE' | 'RESERVED' | 'SOLD',

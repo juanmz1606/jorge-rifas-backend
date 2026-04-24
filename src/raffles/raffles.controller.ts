@@ -46,6 +46,15 @@ export class RafflesController {
     return this.raffles.reserveTicketsBatch(dto.ticketIds)
   }
 
+  @Post('tickets/reserve-with-customer')
+  reserveWithCustomer(
+    @Body('ticketIds') ticketIds: string[],
+    @Body('name') name: string,
+    @Body('phone') phone: string,
+  ) {
+    return this.raffles.reserveWithCustomer(ticketIds, name, phone)
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('tickets')
   addTicket(@Body('raffleId') raffleId: string, @Body('number') number: number) {
