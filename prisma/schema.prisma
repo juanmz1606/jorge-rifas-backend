@@ -66,6 +66,17 @@ model Customer {
   tickets   Ticket[]
 }
 
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String   // "TICKET_RELEASED", "TICKET_SOLD", "TICKET_ASSIGNED", etc.
+  entityType String   // "Ticket", "Customer", "Raffle"
+  entityId   String   
+  oldValue   Json?    // estado anterior
+  newValue   Json?    // estado nuevo
+  note       String?  // descripción legible
+  createdAt  DateTime @default(now())
+}
+
 model Setting {
   id    String @id @default(uuid())
   key   String @unique
