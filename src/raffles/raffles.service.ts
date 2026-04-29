@@ -2,10 +2,15 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRaffleDto } from './dto/create-raffle.dto';
 import { UpdateRaffleDto } from './dto/update-raffle.dto';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class RafflesService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private auditLogService: AuditLogService,
+  ) { }
 
   private generateSlug(title: string): string {
     return title
@@ -22,7 +27,6 @@ export class RafflesService {
     let slug = baseSlug
     let attempt = 1
 
-    // Si el slug ya existe, agrega sufijo -2, -3, etc.
     while (await this.prisma.raffle.findUnique({ where: { slug } })) {
       slug = `${baseSlug}-${++attempt}`
     }
@@ -47,7 +51,20 @@ export class RafflesService {
       data: ticketNumbers.map(n => ({ number: n, raffleId: raffle.id }))
     })
 
-    return raffle
+    // === AUDITORÍA ===
+    await this.auditLogService.log({
+      action: 'RAFFLE_CREATED',
+      entityType: 'Raffle',
+      entityId: raffle.id,
+      newValue: {
+        title: raffle.title,
+        slug: raffle.slug,
+        totalNumbers: raffle.totalNumbers,
+      },
+      note: `Rifa creada: ${raffle.title} con ${raffle.totalNumbers} números`,
+    });
+
+    return raffle;
   }
 
   async findAll() {
@@ -86,28 +103,58 @@ export class RafflesService {
   }
 
   async update(id: string, dto: UpdateRaffleDto) {
-    const data: any = { ...dto }
-    delete data.updateSlug
+    const oldRaffle = await this.prisma.raffle.findUnique({
+      where: { id },
+    });
+
+    if (!oldRaffle) throw new NotFoundException('Rifa no encontrada');
+
+    const data: any = { ...dto };
+    delete data.updateSlug;
 
     if (dto.updateSlug && dto.title) {
-      const baseSlug = this.generateSlug(dto.title)
-      let slug = baseSlug
-      let attempt = 1
+      const baseSlug = this.generateSlug(dto.title);
+      let slug = baseSlug;
+      let attempt = 1;
       while (await this.prisma.raffle.findFirst({
         where: { slug, id: { not: id } }
       })) {
-        slug = `${baseSlug}-${++attempt}`
+        slug = `${baseSlug}-${++attempt}`;
       }
-      data.slug = slug
+      data.slug = slug;
     }
 
-    return this.prisma.raffle.update({
+    const updatedRaffle = await this.prisma.raffle.update({
       where: { id },
       data: {
         ...data,
         price: data.price ? Number(data.price) : undefined,
       },
-    })
+    });
+
+    // === AUDITORÍA ===
+    await this.auditLogService.log({
+      action: 'RAFFLE_UPDATED',
+      entityType: 'Raffle',
+      entityId: id,
+      oldValue: {
+        title: oldRaffle.title,
+        slug: oldRaffle.slug,
+        price: oldRaffle.price,
+        drawDate: oldRaffle.drawDate,
+        status: oldRaffle.status,
+      },
+      newValue: {
+        title: updatedRaffle.title,
+        slug: updatedRaffle.slug,
+        price: updatedRaffle.price,
+        drawDate: updatedRaffle.drawDate,
+        status: updatedRaffle.status,
+      },
+      note: `Rifa actualizada: ${updatedRaffle.title}`,
+    });
+
+    return updatedRaffle;
   }
 
   async findById(id: string) {
@@ -174,18 +221,40 @@ export class RafflesService {
   }
 
   async deleteTicket(ticketId: string) {
-    const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } })
-    if (!ticket) throw new NotFoundException('Ticket no encontrado')
-    if (ticket.status !== 'AVAILABLE') throw new BadRequestException('Solo se pueden eliminar tickets disponibles')
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: { raffle: true, customer: true }
+    });
 
-    await this.prisma.ticket.delete({ where: { id: ticketId } })
+    if (!ticket) throw new NotFoundException('Ticket no encontrado');
+    if (ticket.status !== 'AVAILABLE') {
+      throw new BadRequestException('Solo se pueden eliminar tickets disponibles');
+    }
+
+    // === AUDITORÍA ===
+    await this.auditLogService.log({
+      action: 'TICKET_DELETED',
+      entityType: 'Ticket',
+      entityId: ticketId,
+      oldValue: {
+        number: ticket.number,
+        raffleId: ticket.raffleId,
+        raffleTitle: ticket.raffle.title,
+        status: ticket.status,
+        customerId: ticket.customerId,
+        customerName: ticket.customer?.name,
+      },
+      note: `Ticket ${ticket.number} eliminado de la rifa ${ticket.raffle.title}`,
+    });
+
+    await this.prisma.ticket.delete({ where: { id: ticketId } });
 
     await this.prisma.raffle.update({
       where: { id: ticket.raffleId },
       data: { totalNumbers: { decrement: 1 } }
-    })
+    });
 
-    return { success: true }
+    return { success: true };
   }
 
   async updateStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'FINISHED') {
@@ -207,84 +276,133 @@ export class RafflesService {
   }
 
   async reserveTicketsBatch(ticketIds: string[]) {
-    const unique = [...new Set(ticketIds)]
+    const unique = [...new Set(ticketIds)];
+
     if (unique.length === 0) {
-      throw new BadRequestException('Indica al menos un número')
+      throw new BadRequestException('Indica al menos un número');
     }
     if (unique.length > 40) {
-      throw new BadRequestException('Máximo 40 números por reserva')
+      throw new BadRequestException('Máximo 40 números por reserva');
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const tickets = await tx.ticket.findMany({
+      // Usamos 'any' temporalmente para evitar los problemas de tipado estrictos de Prisma 7
+      const prismaTx = tx as any;
+
+      const tickets = await prismaTx.ticket.findMany({
         where: { id: { in: unique } },
-      })
+        select: {
+          id: true,
+          raffleId: true,
+          status: true,
+          number: true,
+        },
+      });
+
       if (tickets.length !== unique.length) {
-        throw new NotFoundException('Algún ticket no existe')
+        throw new NotFoundException('Algún ticket no existe');
       }
-      const raffleIds = [...new Set(tickets.map((t) => t.raffleId))]
+
+      const raffleIds = [...new Set(tickets.map((t: any) => t.raffleId))];
       if (raffleIds.length !== 1) {
-        throw new BadRequestException('Todos los números deben ser de la misma rifa')
+        throw new BadRequestException('Todos los números deben ser de la misma rifa');
       }
-      const now = new Date()
-      const result = await tx.ticket.updateMany({
-        where: { id: { in: unique }, status: 'AVAILABLE' },
-        data: { status: 'RESERVED', reservedAt: now },
-      })
+
+      const now = new Date();
+
+      const result = await prismaTx.ticket.updateMany({
+        where: {
+          id: { in: unique },
+          status: 'AVAILABLE'
+        },
+        data: {
+          status: 'RESERVED',
+          reservedAt: now
+        },
+      });
+
       if (result.count !== unique.length) {
         throw new ConflictException(
           'Uno o más números ya no estaban disponibles. Recarga e intenta de nuevo.',
-        )
+        );
       }
-      return tx.ticket.findMany({
+
+      return prismaTx.ticket.findMany({
         where: { id: { in: unique } },
         orderBy: { number: 'asc' },
-      })
-    })
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          reservedAt: true,
+          customerId: true,
+        },
+      });
+    });
   }
 
   async reserveWithCustomer(ticketIds: string[], name: string, phone: string) {
-    const unique = [...new Set(ticketIds)]
-    if (unique.length === 0) throw new BadRequestException('Indica al menos un número')
+    const unique = [...new Set(ticketIds)];
+    if (unique.length === 0) throw new BadRequestException('Indica al menos un número');
 
     return this.prisma.$transaction(async (tx) => {
-      // Buscar o crear cliente con etiqueta PENDIENTE
-      let customer = await tx.customer.findUnique({ where: { phone } })
+      // Solución para Prisma 7 - tipado permisivo
+      const prismaTx = tx as any;
+
+      let customer = await prismaTx.customer.findUnique({ where: { phone } });
 
       if (!customer) {
-        customer = await tx.customer.create({
+        customer = await prismaTx.customer.create({
           data: {
             name: `${name} - PENDIENTE`,
             phone,
             lugar: 'Sin especificar',
           }
-        })
+        });
       }
 
-      // Verificar que los tickets existen y están disponibles
-      const tickets = await tx.ticket.findMany({
-        where: { id: { in: unique } }
-      })
+      const tickets = await prismaTx.ticket.findMany({
+        where: { id: { in: unique } },
+        select: {
+          id: true,
+          status: true,
+        },
+      });
+
       if (tickets.length !== unique.length) {
-        throw new NotFoundException('Algún ticket no existe')
-      }
-      const unavailable = tickets.filter(t => t.status !== 'AVAILABLE')
-      if (unavailable.length > 0) {
-        throw new ConflictException('Uno o más números ya no están disponibles')
+        throw new NotFoundException('Algún ticket no existe');
       }
 
-      // Reservar y asignar cliente
-      await tx.ticket.updateMany({
+      const unavailable = tickets.filter((t: any) => t.status !== 'AVAILABLE');
+      if (unavailable.length > 0) {
+        throw new ConflictException('Uno o más números ya no están disponibles');
+      }
+
+      // === AUDITORÍA ANTES de actualizar ===
+      await this.auditLogService.log({
+        action: 'TICKET_ASSIGNED',
+        entityType: 'Ticket',
+        entityId: unique.join(','),
+        oldValue: { status: 'AVAILABLE' },
+        newValue: {
+          status: 'RESERVED',
+          customerId: customer.id,
+          customerName: customer.name
+        },
+        note: `Asignados ${unique.length} tickets al cliente ${customer.name} (${customer.phone})`,
+      });
+
+      await prismaTx.ticket.updateMany({
         where: { id: { in: unique } },
         data: {
           status: 'RESERVED',
           customerId: customer.id,
           reservedAt: new Date(),
         }
-      })
+      });
 
-      return { customerId: customer.id, customerName: customer.name }
-    })
+      return { customerId: customer.id, customerName: customer.name };
+    });
   }
 
   async updateTicketStatus(
@@ -293,7 +411,14 @@ export class RafflesService {
     customerId?: string,
     notes?: string,
   ) {
-    return this.prisma.ticket.update({
+    const oldTicket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: { customer: true },
+    });
+
+    if (!oldTicket) throw new NotFoundException('Ticket no encontrado');
+
+    const updatedTicket = await this.prisma.ticket.update({
       where: { id: ticketId },
       data: {
         status,
@@ -301,7 +426,31 @@ export class RafflesService {
         notes: notes !== undefined ? notes : undefined,
         reservedAt: status === 'RESERVED' ? new Date() : null,
       },
-    })
+    });
+
+    const action =
+      status === 'AVAILABLE' ? 'TICKET_RELEASED' :
+        status === 'SOLD' ? 'TICKET_SOLD' : 'TICKET_RESERVED';
+
+    await this.auditLogService.log({
+      action,
+      entityType: 'Ticket',
+      entityId: ticketId,
+      oldValue: {
+        status: oldTicket.status,
+        customerId: oldTicket.customerId,
+        customerName: oldTicket.customer?.name,
+        notes: oldTicket.notes,
+      },
+      newValue: {
+        status,
+        customerId,
+        notes,
+      },
+      note: `Ticket ${oldTicket.number} → ${status}${customerId ? ` (asignado a cliente)` : ''}`,
+    });
+
+    return updatedTicket;
   }
 
   async assignCustomerToTicketsBatch(
@@ -309,42 +458,98 @@ export class RafflesService {
     customerId: string,
     status?: 'AVAILABLE' | 'RESERVED' | 'SOLD',
   ) {
-    const unique = [...new Set(ticketIds)]
+    const unique = [...new Set(ticketIds)];
     if (unique.length === 0) {
-      throw new BadRequestException('Indica al menos un ticket')
+      throw new BadRequestException('Indica al menos un ticket');
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // Validar que todos los tickets existen
-      const tickets = await tx.ticket.findMany({
+      // Solución para Prisma 7
+      const prismaTx = tx as any;
+
+      const tickets = await prismaTx.ticket.findMany({
         where: { id: { in: unique } },
-      })
+        select: {
+          id: true,
+          status: true,
+          customerId: true,
+          number: true,        // útil para logs
+        },
+      });
+
       if (tickets.length !== unique.length) {
-        throw new NotFoundException('Uno o más tickets no existen')
+        throw new NotFoundException('Uno o más tickets no existen');
       }
 
-      // Validar que el cliente existe
-      const customer = await tx.customer.findUnique({ where: { id: customerId } })
-      if (!customer) throw new NotFoundException('Cliente no encontrado')
+      const customer = await prismaTx.customer.findUnique({
+        where: { id: customerId }
+      });
+      if (!customer) throw new NotFoundException('Cliente no encontrado');
 
-      // Actualizar tickets
-      const updateData: any = { customerId }
-      if (status) updateData.status = status
-      if (status === 'RESERVED') updateData.reservedAt = new Date()
+      // === AUDITORÍA ===
+      await this.auditLogService.log({
+        action: status === 'AVAILABLE' ? 'TICKET_RELEASED' : 'TICKET_ASSIGNED',
+        entityType: 'Ticket',
+        entityId: unique.join(','),
+        oldValue: tickets.map((t: any) => ({
+          id: t.id,
+          status: t.status,
+          customerId: t.customerId
+        })),
+        newValue: {
+          customerId,
+          status: status || 'RESERVED'
+        },
+        note: status === 'AVAILABLE'
+          ? `Liberados ${unique.length} tickets`
+          : `Asignados ${unique.length} tickets al cliente ${customer.name}`,
+      });
 
-      const result = await tx.ticket.updateMany({
+      const updateData: any = { customerId };
+      if (status) updateData.status = status;
+      if (status === 'RESERVED') updateData.reservedAt = new Date();
+
+      const result = await prismaTx.ticket.updateMany({
         where: { id: { in: unique } },
         data: updateData,
-      })
+      });
 
-      return tx.ticket.findMany({
+      return prismaTx.ticket.findMany({
         where: { id: { in: unique } },
         orderBy: { number: 'asc' },
-      })
-    })
+        select: {
+          id: true,
+          number: true,
+          status: true,
+          customerId: true,
+          reservedAt: true,
+        },
+      });
+    });
   }
 
   async remove(id: string) {
-    return this.prisma.raffle.delete({ where: { id } })
+    const raffle = await this.prisma.raffle.findUnique({
+      where: { id },
+      include: { tickets: { select: { id: true, number: true } } }
+    });
+
+    if (!raffle) throw new NotFoundException('Rifa no encontrada');
+
+    // Auditoría antes de eliminar
+    await this.auditLogService.log({
+      action: 'RAFFLE_DELETED',
+      entityType: 'Raffle',
+      entityId: id,
+      oldValue: {
+        title: raffle.title,
+        slug: raffle.slug,
+        totalNumbers: raffle.totalNumbers,
+        ticketsCount: raffle.tickets.length,
+      },
+      note: `Rifa eliminada: ${raffle.title} (${raffle.tickets.length} tickets)`,
+    });
+
+    return this.prisma.raffle.delete({ where: { id } });
   }
 }

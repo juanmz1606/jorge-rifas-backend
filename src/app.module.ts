@@ -6,6 +6,7 @@ import { RafflesModule } from './raffles/raffles.module';
 import { CustomersModule } from './customers/customers.module';
 import { SettingsModule } from './settings/settings.module';
 import { ImagesModule } from './images/images.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ImagesModule } from './images/images.module';
     CustomersModule,
     SettingsModule,
     ImagesModule,
+    AuditLogModule,
   ],
 })
 export class AppModule {}

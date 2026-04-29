@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -68,13 +67,19 @@ model Customer {
 
 model AuditLog {
   id         String   @id @default(uuid())
-  action     String   // "TICKET_RELEASED", "TICKET_SOLD", "TICKET_ASSIGNED", etc.
-  entityType String   // "Ticket", "Customer", "Raffle"
-  entityId   String   
-  oldValue   Json?    // estado anterior
-  newValue   Json?    // estado nuevo
-  note       String?  // descripción legible
+  action     String
+  entityType String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  note       String?
+  userId     String?     // ← Agregar esta línea
   createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([entityType, action, createdAt])
 }
 
 model Setting {
