@@ -373,6 +373,11 @@ export class RafflesService {
         throw new NotFoundException('Algún ticket no existe');
       }
 
+      const raffle = await prismaTx.raffle.findUnique({
+        where: { id: tickets[0].raffleId },
+        select: { title: true, slug: true },
+      })
+
       const unavailable = tickets.filter((t: any) => t.status !== 'AVAILABLE');
       if (unavailable.length > 0) {
         throw new ConflictException('Uno o más números ya no están disponibles');
@@ -389,7 +394,7 @@ export class RafflesService {
           customerId: customer.id,
           customerName: customer.name
         },
-        note: `Asignados ${unique.length} tickets al cliente ${customer.name} (${customer.phone})`,
+        note: `Asignados ${unique.length} tickets al cliente ${customer.name} (${customer.phone}) en rifa "${raffle?.title ?? 'Sin título'}"`,
       });
 
       await prismaTx.ticket.updateMany({
@@ -413,7 +418,10 @@ export class RafflesService {
   ) {
     const oldTicket = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
-      include: { customer: true },
+      include: {
+        customer: true,
+        raffle: { select: { title: true, slug: true } },  // ← agrega esto
+      },
     });
 
     if (!oldTicket) throw new NotFoundException('Ticket no encontrado');
@@ -441,13 +449,16 @@ export class RafflesService {
         customerId: oldTicket.customerId,
         customerName: oldTicket.customer?.name,
         notes: oldTicket.notes,
+        raffleTitle: oldTicket.raffle.title,   // ← nuevo
+        raffleSlug: oldTicket.raffle.slug,     // ← nuevo
       },
       newValue: {
         status,
         customerId,
         notes,
+        raffleTitle: oldTicket.raffle.title,   // ← mismo, no cambia
       },
-      note: `Ticket ${oldTicket.number} → ${status}${customerId ? ` (asignado a cliente)` : ''}`,
+      note: `Ticket ${oldTicket.number} → ${status} en rifa "${oldTicket.raffle.title}"${customerId ? ` (asignado a cliente)` : ''}`,
     });
 
     return updatedTicket;
@@ -481,6 +492,12 @@ export class RafflesService {
         throw new NotFoundException('Uno o más tickets no existen');
       }
 
+      // Después de obtener los tickets, busca la rifa del primero
+      const raffle = await prismaTx.raffle.findUnique({
+        where: { id: tickets[0].raffleId },
+        select: { title: true, slug: true },
+      })
+
       const customer = await prismaTx.customer.findUnique({
         where: { id: customerId }
       });
@@ -501,8 +518,8 @@ export class RafflesService {
           status: status || 'RESERVED'
         },
         note: status === 'AVAILABLE'
-          ? `Liberados ${unique.length} tickets`
-          : `Asignados ${unique.length} tickets al cliente ${customer.name}`,
+          ? `Liberados ${unique.length} tickets de la rifa "${raffle?.title}"`
+          : `Asignados ${unique.length} tickets al cliente ${customer.name} en rifa "${raffle?.title}"`,
       });
 
       const updateData: any = { customerId };
