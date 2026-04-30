@@ -16,6 +16,7 @@ export class AuditLogController {
     @Query('toDate') toDate?: string,
     @Query('limit') limit?: string,
     @Query('page') page?: string,
+    @Query('search') search?: string,
   ) {
     return this.auditLog.findMany({
       entityType,
@@ -25,6 +26,7 @@ export class AuditLogController {
       toDate: toDate ? new Date(toDate) : undefined,
       limit: limit ? Number(limit) : 50,
       page: page ? Number(page) : 1,
+      search,
     });
   }
 

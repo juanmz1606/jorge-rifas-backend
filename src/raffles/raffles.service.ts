@@ -384,7 +384,7 @@ export class RafflesService {
         where: { id: { in: unique } },
         select: {
           id: true,
-          number: true,        // importante para auditoría
+          number: true,
           status: true,
           raffleId: true,
         },
@@ -414,19 +414,19 @@ export class RafflesService {
         oldValue: tickets.map((t: any) => ({
           ticketId: t.id,
           number: t.number,
-          status: t.status,
-          raffleTitle: raffleTitle,
+          previousStatus: t.status,
+          raffleTitle,
         })),
         newValue: {
           status: 'RESERVED',
           customerId: customer.id,
           customerName: customer.name,
           isNewCustomer,
+          raffleTitle,
         },
         note: `Asignados ${unique.length} tickets al cliente ${customer.name} en rifa "${raffleTitle}"`,
       });
 
-      // Actualización de los tickets
       await prismaTx.ticket.updateMany({
         where: { id: { in: unique } },
         data: {
@@ -524,9 +524,9 @@ export class RafflesService {
         where: { id: { in: unique } },
         select: {
           id: true,
+          number: true,
           status: true,
           customerId: true,
-          number: true,
           raffleId: true,
         },
       });
@@ -535,7 +535,6 @@ export class RafflesService {
         throw new NotFoundException('Uno o más tickets no existen');
       }
 
-      // Obtener rifa y cliente
       const raffle = await prismaTx.raffle.findUnique({
         where: { id: tickets[0].raffleId },
         select: { title: true },
@@ -554,24 +553,24 @@ export class RafflesService {
       await this.auditLogService.log({
         action: status === 'AVAILABLE' ? 'TICKET_RELEASED' : 'TICKET_ASSIGNED',
         entityType: 'Ticket',
-        entityId: unique.join(','),                    // IDs técnicos
+        entityId: unique.join(','),
         oldValue: tickets.map((t: any) => ({
           ticketId: t.id,
-          number: t.number,                            // útil para humanos
-          status: t.status,
-          customerId: t.customerId,
+          number: t.number,                    // ← legible
+          previousStatus: t.status,
+          previousCustomerId: t.customerId,
         })),
         newValue: {
-          customerId,
-          customerName: customer.name,                 // ← añadimos nombre
           status: status || 'RESERVED',
+          customerId,                          // ID técnico
+          customerName: customer.name,         // ← nombre legible
+          raffleTitle,
         },
         note: status === 'AVAILABLE'
           ? `Liberados ${unique.length} tickets de la rifa "${raffleTitle}"`
           : `Asignados ${unique.length} tickets al cliente ${customer.name} en rifa "${raffleTitle}"`,
       });
 
-      // Actualización de los tickets
       const updateData: any = { customerId };
       if (status) updateData.status = status;
       if (status === 'RESERVED') updateData.reservedAt = new Date();

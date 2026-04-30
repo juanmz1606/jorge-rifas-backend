@@ -71,6 +71,7 @@ export class AuditLogService {
     toDate,
     limit = 50,
     page = 1,
+    search,
   }: {
     entityType?: string;
     entityId?: string;
@@ -79,6 +80,7 @@ export class AuditLogService {
     toDate?: Date;
     limit?: number;
     page?: number;
+    search?: string;
   }) {
     const skip = (page - 1) * limit;
 
@@ -89,6 +91,9 @@ export class AuditLogService {
         ...(action && { action }),
         ...(fromDate && { createdAt: { gte: fromDate } }),
         ...(toDate && { createdAt: { lte: toDate } }),
+        ...(entityType && { entityType }),
+        ...(action && { action }),
+        ...(search && { note: { contains: search, mode: 'insensitive' } }),
       },
       orderBy: {
         createdAt: 'desc',
