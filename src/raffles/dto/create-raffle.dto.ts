@@ -1,4 +1,6 @@
-import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt, Min, IsArray, Max } from 'class-validator';
+// create-raffle.dto.ts
+import { IsString, IsDateString, IsOptional, IsBoolean, IsInt, Min, IsArray, Max, Matches } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateRaffleDto {
   @IsString()
@@ -7,7 +9,9 @@ export class CreateRaffleDto {
   @IsString()
   description!: string;
 
-  @IsNumber()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(0)
   price!: number;
 
   @IsString()
@@ -20,7 +24,7 @@ export class CreateRaffleDto {
   @IsDateString()
   drawDate!: string;
 
-  @IsString()
+  @Matches(/^\d{7,15}$/, { message: 'whatsappNumber debe tener entre 7 y 15 dígitos' })
   whatsappNumber!: string;
 
   @IsInt()
@@ -31,7 +35,7 @@ export class CreateRaffleDto {
   @IsInt()
   @Min(3)
   @Max(4)
-  digitCount?: number
+  digitCount?: number;
 
   @IsOptional()
   @IsBoolean()
@@ -40,6 +44,6 @@ export class CreateRaffleDto {
   @IsOptional()
   @IsArray()
   @IsInt({ each: true })
-  @Min(1, { each: true })
-  numbers?: number[]
+  @Min(0, { each: true })
+  numbers?: number[];
 }

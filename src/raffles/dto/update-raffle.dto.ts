@@ -1,53 +1,58 @@
-import { IsString, IsNumber, IsDateString, IsOptional, IsBoolean, IsInt, Max, Min } from 'class-validator'
+// update-raffle.dto.ts
+import { IsString, IsDateString, IsOptional, IsBoolean, IsInt, Min, Max, IsEnum, Matches, IsNumber } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { RaffleStatus } from '@prisma/client';
 
 export class UpdateRaffleDto {
   @IsOptional()
   @IsString()
-  title?: string
+  title?: string;
 
   @IsOptional()
   @IsString()
-  description?: string
+  description?: string;
 
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsNumber()
-  price?: number
+  @Min(0)
+  price?: number;
 
   @IsOptional()
   @IsString()
-  lotteryName?: string
+  lotteryName?: string;
 
   @IsOptional()
   @IsString()
-  lotteryUrl?: string
+  lotteryUrl?: string;
 
   @IsOptional()
   @IsDateString()
-  drawDate?: string
+  drawDate?: string;
 
   @IsOptional()
-  @IsString()
-  whatsappNumber?: string
+  @Matches(/^\d{7,15}$/, { message: 'whatsappNumber debe tener entre 7 y 15 dígitos' })
+  whatsappNumber?: string;
 
   @IsOptional()
   @IsInt()
   @Min(3)
   @Max(4)
-  digitCount?: number
+  digitCount?: number;
 
   @IsOptional()
   @IsBoolean()
-  featured?: boolean
+  featured?: boolean;
 
   @IsOptional()
-  @IsString()
-  status?: 'ACTIVE' | 'INACTIVE' | 'FINISHED'
+  @IsEnum(RaffleStatus)
+  status?: RaffleStatus;
 
   @IsOptional()
   @IsInt()
-  winnerNumber?: number | null
+  winnerNumber?: number | null;
 
   @IsOptional()
   @IsBoolean()
-  updateSlug?: boolean
+  updateSlug?: boolean;
 }
